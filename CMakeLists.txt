@@ -24,3 +24,19 @@ find_package(Threads REQUIRED)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 enable_testing()
+
+# Core library: Process, schedulers, simulator, reports, workloads.
+add_library(sched_core STATIC
+  src/scheduler.cpp
+  src/fcfs.cpp
+  src/sjf.cpp
+  src/round_robin.cpp
+  src/scheduler_factory.cpp
+  src/simulator.cpp
+  src/report.cpp
+  src/workload.cpp)
+target_link_libraries(sched_core PUBLIC Threads::Threads)
+
+# Command-line simulator.
+add_executable(cpu_sched src/main.cpp)
+target_link_libraries(cpu_sched PRIVATE sched_core)

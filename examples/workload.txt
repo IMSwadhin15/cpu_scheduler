@@ -1,0 +1,5 @@
+# id arrival burst
+1 0 5
+2 1 3
+3 2 8
+4 3 6
