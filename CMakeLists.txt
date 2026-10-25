@@ -34,9 +34,15 @@ add_library(sched_core STATIC
   src/scheduler_factory.cpp
   src/simulator.cpp
   src/report.cpp
-  src/workload.cpp)
+  src/workload.cpp
+  src/thread_pool.cpp)
 target_link_libraries(sched_core PUBLIC Threads::Threads)
 
 # Command-line simulator.
 add_executable(cpu_sched src/main.cpp)
 target_link_libraries(cpu_sched PRIVATE sched_core)
+
+# ---- tests (plain asserts, run through CTest) ----
+add_executable(test_thread_pool tests/test_thread_pool.cpp)
+target_link_libraries(test_thread_pool PRIVATE sched_core)
+add_test(NAME thread_pool COMMAND test_thread_pool)
