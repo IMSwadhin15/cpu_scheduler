@@ -35,12 +35,17 @@ add_library(sched_core STATIC
   src/simulator.cpp
   src/report.cpp
   src/workload.cpp
-  src/thread_pool.cpp)
+  src/thread_pool.cpp
+  src/batch.cpp)
 target_link_libraries(sched_core PUBLIC Threads::Threads)
 
 # Command-line simulator.
 add_executable(cpu_sched src/main.cpp)
 target_link_libraries(cpu_sched PRIVATE sched_core)
+
+# Parallel comparison + timing tool.
+add_executable(compare src/compare_main.cpp)
+target_link_libraries(compare PRIVATE sched_core)
 
 # ---- tests (plain asserts, run through CTest) ----
 add_executable(test_thread_pool tests/test_thread_pool.cpp)
