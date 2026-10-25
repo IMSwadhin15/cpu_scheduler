@@ -51,3 +51,11 @@ target_link_libraries(compare PRIVATE sched_core)
 add_executable(test_thread_pool tests/test_thread_pool.cpp)
 target_link_libraries(test_thread_pool PRIVATE sched_core)
 add_test(NAME thread_pool COMMAND test_thread_pool)
+
+add_executable(test_schedulers tests/test_schedulers.cpp)
+target_link_libraries(test_schedulers PRIVATE sched_core)
+add_test(NAME schedulers COMMAND test_schedulers)
+
+add_executable(test_batch tests/test_batch.cpp)
+target_link_libraries(test_batch PRIVATE sched_core)
+add_test(NAME batch COMMAND test_batch)
