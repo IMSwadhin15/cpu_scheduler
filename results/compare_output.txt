@@ -1,0 +1,15 @@
+Workloads: 2000 x 200 processes, seed 1, hardware threads: 12
+
+  1 thread(s): median 0.5605 s, min 0.4696 s over 15 runs
+  2 thread(s): median 0.2848 s, min 0.2193 s over 15 runs
+  4 thread(s): median 0.1938 s, min 0.1491 s over 15 runs
+  8 thread(s): median 0.1433 s, min 0.0894 s over 15 runs
+
+Average waiting time, mean over 2000 workloads
+Algorithm        Avg waiting
+FCFS                  945.06
+RR (q=4)             1244.90
+SJF                   625.31
+
+Results identical for every thread count: yes
+Timings written to results/timings.csv

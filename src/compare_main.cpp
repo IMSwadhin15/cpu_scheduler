@@ -30,7 +30,7 @@ void usage(std::ostream& out) {
          "  --procs      processes per workload        (default 200)\n"
          "  --quantum    Round Robin time quantum      (default 4)\n"
          "  --seed       base random seed              (default 1)\n"
-         "  --repeats    timed runs per thread count; the median is reported (default 5)\n"
+         "  --repeats    timed runs per thread count; median and min are reported (default 9)\n"
          "  --csv        output file                   (default results/timings.csv)\n";
 }
 
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
   config.workloads = 2000;
   config.procs_per_workload = 200;
   int quantum = 4;
-  int repeats = 5;
+  int repeats = 9;
   std::string csv_path = "results/timings.csv";
 
   try {
@@ -95,27 +95,41 @@ int main(int argc, char** argv) {
               << ", hardware threads: " << std::thread::hardware_concurrency() << "\n\n";
 
     const std::vector<std::size_t> thread_counts = {1, 2, 4, 8};
-    std::vector<double> medians;
-    cpusim::BatchResult reference;  // result of the 1-thread run
-    bool identical = true;
-
+    std::vector<std::unique_ptr<cpusim::ThreadPool>> pools;  // idle workers just sleep
     for (std::size_t threads : thread_counts) {
-      cpusim::ThreadPool pool(threads);
-      cpusim::run_batch(pool, schedulers, config);  // warm-up, not timed
+      pools.push_back(std::make_unique<cpusim::ThreadPool>(threads));
+    }
 
-      std::vector<double> times;
-      for (int r = 0; r < repeats; ++r) {
+    cpusim::BatchResult reference;  // result of the first 1-thread run
+    bool identical = true;
+    std::vector<std::vector<double>> times(thread_counts.size());
+
+    // Warm-up pass (not timed), then `repeats` timed rounds. Each round times
+    // every thread count once, back to back, so a burst of background load on
+    // this machine hits all thread counts alike instead of just one of them.
+    for (int round = -1; round < repeats; ++round) {
+      for (std::size_t k = 0; k < thread_counts.size(); ++k) {
         const auto t0 = std::chrono::steady_clock::now();
-        cpusim::BatchResult result = cpusim::run_batch(pool, schedulers, config);
-        times.push_back(seconds_since(t0));
+        cpusim::BatchResult result = cpusim::run_batch(*pools[k], schedulers, config);
+        const double elapsed = seconds_since(t0);
 
-        if (threads == thread_counts.front() && r == 0) reference = result;
+        if (round < 0) {
+          if (k == 0) reference = result;
+        } else {
+          times[k].push_back(elapsed);
+        }
         if (result.waiting != reference.waiting) identical = false;
       }
-      std::sort(times.begin(), times.end());
-      medians.push_back(times[times.size() / 2]);
-      std::cout << "  " << threads << " thread(s): median " << std::fixed << std::setprecision(4)
-                << medians.back() << " s over " << repeats << " runs\n";
+    }
+
+    std::vector<double> medians, minimums;
+    for (std::size_t k = 0; k < thread_counts.size(); ++k) {
+      std::sort(times[k].begin(), times[k].end());
+      medians.push_back(times[k][times[k].size() / 2]);
+      minimums.push_back(times[k].front());
+      std::cout << "  " << thread_counts[k] << " thread(s): median " << std::fixed
+                << std::setprecision(4) << medians.back() << " s, min " << minimums.back()
+                << " s over " << repeats << " runs\n";
     }
 
     // ---- comparison table (from the 1-thread reference run) ----
@@ -136,11 +150,11 @@ int main(int argc, char** argv) {
     if (csv.has_parent_path()) std::filesystem::create_directories(csv.parent_path());
     std::ofstream out(csv);
     if (!out) throw std::runtime_error("cannot write " + csv_path);
-    out << "threads,workloads,procs_per_workload,repeats,median_seconds,speedup_vs_1_thread\n";
+    out << "threads,workloads,procs_per_workload,repeats,median_seconds,min_seconds,speedup_vs_1_thread\n";
     for (std::size_t i = 0; i < thread_counts.size(); ++i) {
       out << thread_counts[i] << ',' << config.workloads << ',' << config.procs_per_workload << ','
           << repeats << ',' << std::fixed << std::setprecision(6) << medians[i] << ','
-          << std::setprecision(3) << medians[0] / medians[i] << '\n';
+          << minimums[i] << ',' << std::setprecision(3) << medians[0] / medians[i] << '\n';
     }
     std::cout << "Timings written to " << csv_path << "\n";
   } catch (const std::exception& e) {
